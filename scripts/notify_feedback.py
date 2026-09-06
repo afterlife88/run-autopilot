@@ -49,7 +49,15 @@ def notify_new_run(aid, title, wtype, dist_km, avg_power, pct_cp, rss, analysis=
     text = f"🆕 Синканув ран: {title}\n{stats}"
     if analysis:
         text += f"\n\n🧠 {analysis}"
-    text += f"\n\nТип визначив як [{wtype}] — підтверди або поміняй:"
+    text += f"\n\nТип визначив як [{wtype}]. Кнопки нижче — або відпиши текстом:"
+
+    # Text-reply fallback (works even when inline-button callbacks are gated)
+    type_menu = " · ".join(f"{i+1} {t}" for i, t in enumerate(TYPES))
+    reply_help = (f"\n\n✍️ Відповідь текстом:\n"
+                  f"• тип: {type_menu}\n"
+                  f"• кросівки: г + номер (напр. г3)")
+    if wtype in ("Threshold", "Interval"):
+        reply_help += "\n• лактат: напр. лактат 6: 2.8, 10: 3.8"
 
     blocks = [{"type": "text", "text": text}]
 
@@ -77,11 +85,14 @@ def notify_new_run(aid, title, wtype, dist_km, avg_power, pct_cp, rss, analysis=
                        "text": "🧪 Якщо міряв лактат — відповідай текстом, "
                                "наприклад: лактат 6: 2.8, 10: 3.8"})
 
+    # Append the text-reply help to the leading text block
+    blocks[0]["text"] = text + reply_help
+
     try:
         subprocess.run(
             ["openclaw", "message", "send",
              "--channel", channel, "--target", target,
-             "-m", text,
+             "-m", text + reply_help,
              "--presentation", json.dumps({"blocks": blocks}, ensure_ascii=False)],
             capture_output=True, text=True, timeout=60, check=True,
         )
