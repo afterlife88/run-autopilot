@@ -60,6 +60,19 @@ def main():
         update["gear_id"] = value
         print(f"gear → {value}")
 
+    elif action == "type" and value == "ok":
+        # Confirmation of the detected type: no rename, just make sure the
+        # native Strava workout_type matches and record the confirmation.
+        cur_type = entry.get("type")
+        if cur_type in STRAVA_WORKOUT_TYPE and detail.get("workout_type") != STRAVA_WORKOUT_TYPE[cur_type]:
+            update["workout_type"] = STRAVA_WORKOUT_TYPE[cur_type]
+        entry["type_confirmed"] = True
+        print(f"type confirmed ({cur_type or 'unchanged'})")
+        if not update:
+            save_state(state)
+            print("OK: nothing to push")
+            return 0
+
     elif action == "type":
         new_type = value
         old_title = detail.get("name", "")
