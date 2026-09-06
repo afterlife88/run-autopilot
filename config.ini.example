@@ -1,0 +1,48 @@
+; Copy to config.ini and fill in. config.ini is gitignored — never commit it.
+
+[Garmin]
+; Garmin Connect account. First-time auth (handles MFA): python3 garmin_auth.py
+; Tokens are cached in ~/.garmin_tokens (OAuth1 is long-lived, ~1 year).
+username = you@example.com
+password = your_garmin_password
+
+[Strava]
+; Create an API application at https://www.strava.com/settings/api
+; Then complete the OAuth flow once to obtain the initial tokens
+; (scope: activity:read_all,activity:write). Tokens auto-refresh afterwards.
+client_id = 12345
+client_secret = xxxxxxxxxxxxxxxx
+access_token = xxxxxxxxxxxxxxxx
+refresh_token = xxxxxxxxxxxxxxxx
+expires_at = 0
+athlete_id = 12345678
+
+[Stryd]
+; Unofficial PowerCenter API (api.stryd.com). For email/password accounts you
+; can obtain a token via POST https://www.stryd.com/b/email/signin.
+; For social-SSO accounts (Facebook/Google/Apple): log into
+; stryd.com/powercenter in a browser and copy localStorage values
+; `token`, `refreshToken`, `refreshClientId`. Tokens rotate and auto-refresh
+; after that (see stryd_client.py).
+token = eyJ...
+refresh_token = xxxxxxxxxxxxxxxx
+refresh_client_id = 00000000-0000-0000-0000-000000000000
+athlete_id = 00000000-0000-0000-0000-000000000000
+
+[Dexcom]
+; Dexcom Share credentials (enable Share in the Dexcom app first).
+; region: us / ous / jp
+username = your_dexcom_username
+password = your_dexcom_password
+region = ous
+
+[Glooko]
+; Optional. Web-session login against eu.my.glooko.com (EU accounts only —
+; adjust URLs in glooko_client.py for other regions). Used for pump data
+; (bolus/basal/IOB) after USB uploads.
+username = you@example.com
+password = your_glooko_password
+
+[Settings]
+athlete_weight = 70.0
+default_location = Copenhagen, Denmark

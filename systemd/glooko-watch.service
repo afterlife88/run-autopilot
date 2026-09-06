@@ -1,0 +1,10 @@
+[Unit]
+Description=Detect new Glooko pump uploads and refresh workout data
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/LT-trainings
+ExecStart=/home/pi/LT-trainings/.venv/bin/python /home/pi/LT-trainings/scripts/glooko_watch.py
+TimeoutStartSec=3600
+Nice=10

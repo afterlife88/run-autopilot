@@ -1,0 +1,10 @@
+config.ini
+.venv/
+__pycache__/
+*.pyc
+auto_sync_state.json
+glooko_watch_state.json
+pending_workouts.json
+results/
+trainings-files/
+logs/

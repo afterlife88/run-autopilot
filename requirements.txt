@@ -1,0 +1,6 @@
+garminconnect>=0.2.19
+garth>=0.4.44
+fitdecode>=0.10.0
+requests>=2.31
+pydexcom>=0.4.0
+beautifulsoup4>=4.12

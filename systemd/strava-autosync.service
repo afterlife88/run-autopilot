@@ -1,0 +1,10 @@
+[Unit]
+Description=Garmin to Strava auto-sync (LT-trainings)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pi/LT-trainings
+ExecStart=/home/pi/LT-trainings/.venv/bin/python /home/pi/LT-trainings/scripts/auto_sync.py
+TimeoutStartSec=1800
+Nice=10

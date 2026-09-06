@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Garmin to Strava auto-sync every 10 minutes
+
+[Timer]
+OnCalendar=*:02/10
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
