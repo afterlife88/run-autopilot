@@ -46,3 +46,11 @@ password = your_glooko_password
 [Settings]
 athlete_weight = 70.0
 default_location = Copenhagen, Denmark
+; Fallback coordinates for weather when a run has no GPS
+home_lat = 55.6761
+home_lon = 12.5683
+
+[Paths]
+; Where GPS track JSONs are written (e.g. for a dashboard map)
+tracks_dir = ~/run-data/tracks
+dashboard_dir = ~/run-data

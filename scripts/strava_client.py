@@ -20,7 +20,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(SCRIPT_DIR)
 CONFIG_FILE = os.path.join(BASE_DIR, "config.ini")
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
-TRACKS_DIR = os.path.join(os.path.dirname(BASE_DIR), "fitness-dashboard", "public", "tracks")
+sys.path.insert(0, BASE_DIR)
+import runcfg
+TRACKS_DIR = runcfg.path("tracks_dir")
 
 STRAVA_API = "https://www.strava.com/api/v3"
 

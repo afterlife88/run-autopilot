@@ -17,15 +17,17 @@ from urllib.request import urlopen, Request
 from urllib.error import URLError
 
 # Paths
-DASHBOARD_DIR = "/home/pi/fitness-dashboard"
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import runcfg
+
+DASHBOARD_DIR = runcfg.path("dashboard_dir")
 DATA_FILE = os.path.join(DASHBOARD_DIR, "public", "data.json")
-TRACKS_DIR = os.path.join(DASHBOARD_DIR, "public", "tracks")
+TRACKS_DIR = runcfg.path("tracks_dir")
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
 FIT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "trainings-files", "fit")
 
-# Copenhagen coordinates
-LAT = 55.6761
-LON = 12.5683
+# Home coordinates (weather fallback for the manual pipeline)
+LAT, LON = runcfg.home_coords()
 
 # WMO Weather interpretation codes → description
 WMO_CODES = {

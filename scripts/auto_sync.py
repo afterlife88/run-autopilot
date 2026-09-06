@@ -44,11 +44,12 @@ import strava_client as sc
 FIT_DIR = os.path.join(LT_DIR, "trainings-files", "fit")
 STATE_FILE = os.path.join(LT_DIR, "auto_sync_state.json")
 PENDING_FILE = os.path.join(LT_DIR, "pending_workouts.json")
-TRACKS_DIR = "/home/pi/fitness-dashboard/public/tracks"
+import runcfg
+TRACKS_DIR = runcfg.path("tracks_dir")
 LOCK_FILE = "/tmp/strava_autosync.lock"
 
 # Fallback when a FIT file has no GPS at all (weather is skipped for indoor)
-DEFAULT_LAT, DEFAULT_LON = 55.6761, 12.5683  # Copenhagen
+DEFAULT_LAT, DEFAULT_LON = runcfg.home_coords()
 
 # Garmin's auto-generated names look like "<Place> Running"
 GARMIN_DEFAULT_RE = re.compile(r"^(.{0,40} )?(Running|Løb|Treadmill Running)$")
@@ -408,21 +409,60 @@ def process_activity(act, token, state, args):
         client.download_activity_fit(aid, fit_path)
 
     preview = preview_fit(fit_path)
-
-    # Stryd metrics first: CP drives the power-zone classification
-    stryd_metrics = None
     start_gmt_dt = act.get("start_time_gmt")
-    if start_gmt_dt:
+
+    # The three network-bound enrichments are independent — run them in
+    # parallel. Stryd (CP) gates classification; track gates weather.
+    def _task_stryd():
+        if not start_gmt_dt:
+            return None
+        from stryd_client import StrydClient
+        epoch0 = calendar.timegm(start_gmt_dt.timetuple())
+        return StrydClient(os.path.join(LT_DIR, "config.ini")).metrics_for(epoch0)
+
+    def _task_track_weather():
+        track = extract_track(fit_path)
+        if not track or not track.get("points"):
+            return None, None
+        hour_utc = start_gmt_dt.hour if start_gmt_dt else 10
+        weather = fetch_weather(preview["date"], hour_utc,
+                                track["start"]["lat"], track["start"]["lon"])
+        return track, weather
+
+    def _task_glucose():
+        if not (preview.get("date") and preview.get("start_time")):
+            return None
+        start_utc = datetime.strptime(
+            f"{preview['date']} {preview['start_time']}", "%Y-%m-%d %H:%M:%S")
+        return fetch_glucose(start_utc, (preview.get("total_duration_min") or 0) * 60)
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        f_stryd = pool.submit(_task_stryd)
+        f_track = pool.submit(_task_track_weather)
+        f_glucose = pool.submit(_task_glucose)
+
+        stryd_metrics = None
         try:
-            from stryd_client import StrydClient
-            epoch0 = calendar.timegm(start_gmt_dt.timetuple())
-            stryd_metrics = StrydClient(os.path.join(LT_DIR, "config.ini")).metrics_for(epoch0)
+            stryd_metrics = f_stryd.result()
             if stryd_metrics:
                 log.info("  stryd: RSS %s, CP %sW",
                          round(stryd_metrics.get("rss") or 0),
                          round(stryd_metrics.get("cp") or 0))
         except Exception as e:
             log.warning("  stryd fetch failed: %s", e)
+
+        track, weather = None, None
+        try:
+            track, weather = f_track.result()
+        except Exception as e:
+            log.warning("  track/weather failed: %s", e)
+
+        readings = None
+        try:
+            readings = f_glucose.result()
+        except Exception as e:
+            log.warning("  glucose fetch failed: %s", e)
 
     cp = None
     if stryd_metrics:
@@ -431,24 +471,9 @@ def process_activity(act, token, state, args):
     wtype, name = classify(preview, act.get("activity_name", ""), cp=cp)
     dist_km = preview.get("total_distance_km") or act["distance_km"]
 
-    # GPS track → coords for weather + headwind
-    track = None
-    try:
-        track = extract_track(fit_path)
-    except Exception as e:
-        log.warning("  track extraction failed: %s", e)
-    indoor = preview.get("is_treadmill") or not track or not track.get("points")
-
-    weather, headwind = None, None
+    indoor = preview.get("is_treadmill") or not track
+    headwind = None
     if not indoor:
-        lat = track["start"]["lat"]
-        lon = track["start"]["lon"]
-        start_gmt = act.get("start_time_gmt")
-        hour_utc = start_gmt.hour if start_gmt else 10
-        try:
-            weather = fetch_weather(preview["date"], hour_utc, lat, lon)
-        except Exception as e:
-            log.warning("  weather fetch failed: %s", e)
         if weather and weather.get("wind_direction_deg") is not None:
             headwind = sc.calc_headwind(track["points"], weather["wind_direction_deg"])
 
@@ -461,15 +486,13 @@ def process_activity(act, token, state, args):
                     json.dump(track, f, separators=(",", ":"))
             except OSError as e:
                 log.warning("  could not save track: %s", e)
+    else:
+        weather = None
 
     intervals = preview.get("intervals", [])
-    if not indoor and preview.get("date") and preview.get("start_time"):
-        start_utc = datetime.strptime(
-            f"{preview['date']} {preview['start_time']}", "%Y-%m-%d %H:%M:%S")
-        readings = fetch_glucose(start_utc, (preview.get("total_duration_min") or 0) * 60)
-        if readings:
-            attach_glucose(intervals, readings)
-            log.info("  glucose: %d CGM readings attached", len(readings))
+    if not indoor and readings:
+        attach_glucose(intervals, readings)
+        log.info("  glucose: %d CGM readings attached", len(readings))
 
     workout = {
         "date": preview.get("date"),

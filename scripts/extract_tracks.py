@@ -18,7 +18,9 @@ import fitdecode
 # Paths
 FIT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "trainings-files", "fit")
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "results")
-TRACKS_DIR = "/home/pi/fitness-dashboard/public/tracks"
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import runcfg
+TRACKS_DIR = runcfg.path("tracks_dir")
 
 # Semicircles to degrees
 SEMI_TO_DEG = 180.0 / (2**31)
