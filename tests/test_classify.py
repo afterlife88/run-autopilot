@@ -97,3 +97,11 @@ def test_no_cp_fallback_hr_recovery():
     laps = [iv("5:40", 0, 1000, 120) for _ in range(6)]
     wtype, _ = classify(preview(laps, 6.0, 34, avg_hr=120))
     assert wtype == "Recovery"
+
+
+def test_hard_long_run_not_mistaken_for_reps():
+    # 2026-09-06: 30 km at ~89% CP — km auto-laps above 90% CP must not
+    # become "25×1k"; continuous work covering the whole run = Long Run
+    laps = [iv("4:47", 276 if i % 2 else 269, 1000, 155) for i in range(30)]
+    wtype, name = classify(preview(laps, 30.1, 144, avg_hr=155), cp=304)
+    assert (wtype, name) == ("Long Run", "Long Run 30k")

@@ -220,7 +220,7 @@ def _rep_label(med_dist, med_sec):
     return f"{int(med_sec // 60)}:{int(med_sec % 60):02d}"
 
 
-def _detect_work_reps(intervals, cp=None):
+def _detect_work_reps(intervals, cp=None, total_km=None):
     """Detect workout reps. Returns (n, label, wtype) or None.
 
     With CP available, work reps are laps at ≥90% CP — this correctly
@@ -232,6 +232,15 @@ def _detect_work_reps(intervals, cp=None):
     distances = [iv.get("distance_m") or 0 for iv in intervals]
 
     if cp:
+        # Contiguous km-auto-lap recording (laps ≈1 km summing to the whole
+        # distance) means there was no structured workout on the watch — a
+        # fast steady run would otherwise masquerade as "25×1k". Structured
+        # sessions expose only active laps, which cover part of the distance.
+        km_laps = sum(1 for d in distances[:-1] if 950 <= d <= 1060)
+        contiguous = (total_km and sum(distances) >= 0.9 * total_km * 1000)
+        if contiguous and distances and km_laps >= max(1, (len(distances) - 1) * 6 // 10):
+            return None
+
         work = [(d, dist, iv.get("power") or 0)
                 for d, dist, iv in zip(durations, distances, intervals)
                 if d >= 45 and (iv.get("power") or 0) >= 0.90 * cp]
@@ -285,7 +294,7 @@ def classify(preview, garmin_name="", cp=None):
     if garmin_name and not GARMIN_DEFAULT_RE.match(garmin_name.strip()):
         custom_name = garmin_name.strip()
 
-    reps = _detect_work_reps(intervals, cp)
+    reps = _detect_work_reps(intervals, cp, total_km=dist)
     if reps:
         n, label, wtype = reps
         return wtype, custom_name or f"{n}×{label}"
