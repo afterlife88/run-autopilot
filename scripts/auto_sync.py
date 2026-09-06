@@ -560,6 +560,7 @@ def process_activity(act, token, state, args):
     ours = push_to_strava(token, activity, title, description,
                           prev=entry.get("pushed", {}), dry_run=args.dry_run)
 
+    was_new = entry.get("status") != "synced"
     if not args.dry_run:
         state["activities"][aid] = {
             "status": "synced",
@@ -569,6 +570,19 @@ def process_activity(act, token, state, args):
             "pushed": ours,
             "updated_at": datetime.now().isoformat(timespec="seconds"),
         }
+
+    # Telegram feedback prompt (type confirm / shoes / lactate) — new runs only
+    if was_new and not args.since and not args.dry_run:
+        try:
+            from notify_feedback import notify_new_run
+            avg_pwr = _avg_power(intervals)
+            pct = round(avg_pwr / cp * 100) if (avg_pwr and cp) else None
+            notify_new_run(aid, title, wtype, dist_km,
+                           round(avg_pwr) if avg_pwr else None, pct,
+                           round((stryd_metrics or {}).get("rss") or 0) or None,
+                           analysis=(llm or {}).get("analysis", "") if llm else "")
+        except Exception as e:
+            log.warning("  telegram notify failed: %s", e)
 
     if not args.since and not args.dry_run:
         append_pending(preview, act, fit_path)
