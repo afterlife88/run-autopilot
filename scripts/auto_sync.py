@@ -512,8 +512,32 @@ def process_activity(act, token, state, args):
         "intervals": intervals,
         "stryd": stryd_metrics or {},
     }
+    # LLM pass (Sonnet): final say on type/name + a short effort analysis.
+    # Skipped for backfills; heuristic result stands on any failure.
+    llm = None
+    if not args.since and not getattr(args, "no_llm", False):
+        try:
+            from run_analysis import analyze_run
+            avg_pwr = _avg_power(intervals)
+            pct_cp = round(avg_pwr / cp * 100) if (avg_pwr and cp) else None
+            llm = analyze_run(workout, preview, pct_cp, wtype, name, cp)
+        except Exception as e:
+            log.warning("  llm analysis error: %s", e)
+    if llm:
+        wtype = llm["type"]
+        # A name the athlete set on the watch always wins over the LLM's
+        garmin_name = (act.get("activity_name") or "").strip()
+        if not garmin_name or GARMIN_DEFAULT_RE.match(garmin_name):
+            name = llm["name"]
+        workout["type"], workout["workout_name"] = wtype, name
+        log.info("  llm: [%s] %s", wtype, llm["name"])
+
     title = sc.build_title(workout)
     description = sc.build_description(workout, headwind)  # None when indoor
+
+    if llm and llm.get("analysis"):
+        block = "🧠 " + llm["analysis"]
+        description = f"{description}\n\n{block}" if description else block
 
     log.info("  → %s [%s]%s", title, wtype, " (indoor)" if indoor else "")
 
@@ -559,6 +583,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--limit", type=int, default=0, help="Process at most N activities")
     parser.add_argument("--force", action="store_true", help="Re-push even if already synced")
+    parser.add_argument("--no-llm", action="store_true", help="Skip the Sonnet run analysis")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s",
