@@ -34,7 +34,11 @@ def _chat_target():
 
 
 def _btn(label, value, style=None):
-    b = {"label": label, "action": {"type": "callback", "value": value}}
+    # Plain "value" (NOT action.type=callback): OpenClaw wraps action-callbacks
+    # in an opaque tgcb1: envelope reserved for plugin handlers and silently
+    # drops unclaimed presses. A raw value reaches the agent as
+    # "callback_data: <value>" text, which is what we parse.
+    b = {"label": label, "value": value}
     if style:
         b["style"] = style
     return b
